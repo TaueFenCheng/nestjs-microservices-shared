@@ -1,0 +1,22 @@
+# 本地开发依赖基础设施
+# 启动:docker compose up -d
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: ms-shared-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+
+  # 如需真实数据库,取消注释并复制 .env.example -> .env
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: ms-shared-postgres
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #     POSTGRES_DB: nestjs_microservices
+  #   ports:
+  #     - "5432:5432"
