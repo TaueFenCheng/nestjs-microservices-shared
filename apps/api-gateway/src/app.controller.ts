@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Body, Param, Query, Inject, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import {
   AuthService,
   CreateOrderDto,
@@ -116,7 +117,9 @@ export class AppController {
   /**
    * 对订单发起支付:支付 Saga(分布式锁 + 两步支付 + 失败自动补偿)。
    * ?simulateFailure=true 时模拟支付网关失败,演示 Saga 反向补偿(退款+取消订单)。
+   * 敏感操作单独收紧限流(10s 内最多 3 次,防刷)。
    */
+  @Throttle({ default: { limit: 3, ttl: 10_000 } })
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
   @Post('orders/:id/pay')
   async payOrder(

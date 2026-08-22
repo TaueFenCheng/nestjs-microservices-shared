@@ -33,7 +33,12 @@ export class OrderTimeoutProcessor extends WorkerHost {
       return;
     }
 
-    await this.ordersService.updateStatus(orderId, OrderStatus.CANCELLED);
-    this.logger.log(`订单超时未支付,自动取消: ${orderId}`);
+    try {
+      await this.ordersService.updateStatus(orderId, OrderStatus.CANCELLED);
+      this.logger.log(`订单超时未支付,自动取消: ${orderId}`);
+    } catch (err) {
+      // 乐观锁冲突说明订单已被并发处理,同样视为完成
+      this.logger.warn(`超时取消被并发更新拦截: ${orderId} ${(err as Error).message}`);
+    }
   }
 }

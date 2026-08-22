@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import {
   ClientsModule,
   ClientProxyFactoryService,
@@ -26,6 +27,10 @@ import configuration from './config/configuration';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
+    // 接口限流:全局默认每 IP 每分钟 20 次(对标 Sentinel / Spring RateLimit)
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60_000, limit: 20 },
+    ]),
     // 一行接入所有公共能力(日志 + 健康检查;按需加 database/auth)
     SharedModule.forRoot({
       appName: 'api-gateway',
@@ -78,9 +83,10 @@ import configuration from './config/configuration';
     AppService,
     ClientProxyFactoryService,
     PaymentSagaService,
-    // 全局守卫:先 JWT 鉴权,再角色授权
+    // 全局守卫:先 JWT 鉴权,再角色授权,最后限流
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

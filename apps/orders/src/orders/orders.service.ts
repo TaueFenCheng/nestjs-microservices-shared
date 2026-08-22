@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import {
   DataSource,
@@ -149,6 +150,18 @@ export class OrdersService implements OnModuleInit {
 
     const fresh = await this.repo.findOneBy({ id });
     return this.toOrder(fresh!);
+  }
+
+  /**
+   * 定时任务演示(对标 Spring @Scheduled / Quartz):每 10 秒对账扫描。
+   * 生产注意:多实例部署时配合分布式锁防重复执行;
+   * 重活/延迟活建议走 BullMQ(repeatable job),避免定时器阻塞事件循环。
+   */
+  @Cron('*/10 * * * * *')
+  async reconciliationScan(): Promise<void> {
+    const total = await this.repo.count();
+    const pending = await this.repo.countBy({ status: OrderStatus.PENDING });
+    this.logger.log(`[定时任务] 订单对账扫描: 总数=${total}, 待支付=${pending}`);
   }
 
   /** 调度超时自动取消;调度失败不影响下单(仅告警) */

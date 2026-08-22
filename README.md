@@ -166,6 +166,11 @@ curl -X POST http://localhost:3000/orders \
 | 27 | 乐观锁 `@VersionColumn` + 并发冲突拦截(409) | `orders.updateStatus`(WHERE version + affected 判定) |
 | 28 | 数据库迁移管理(migration:run/generate/revert) | `typeorm.config.ts` + `src/migrations/` |
 | 29 | QueryBuilder 动态条件查询(对标 MyBatis 动态 SQL) | `orders.findAll` 分页查询 |
+| 30 | 声明式事务 `@Transactional` + `@TransactionManager`(对标 Spring) | `transaction/` + `orders.doCreate` |
+| 31 | 读写分离(多 DataSource + slave 只读副本) | `DatabaseModule.replicas` + `@InjectDataSource('slave')` |
+| 32 | 注解族 `@Retryable`(指数退避)/ `@Cacheable` / `@Idempotent` | `decorators/` + orders/billing 挂载 |
+| 33 | 接口限流 `@nestjs/throttler` + `@Throttle`/`@SkipThrottle` | 网关全局 + pay 路由收紧(3/10s) |
+| 34 | 定时任务 `@nestjs/schedule` `@Cron`(对标 @Scheduled/Quartz) | `orders.reconciliationScan` |
 
 ---
 

@@ -82,7 +82,14 @@ export class OrdersController {
   @EventPattern(MESSAGE_PATTERNS.PAYMENT_SUCCEEDED)
   onPaymentSucceeded(@Payload() data: { orderId: string }, @Ctx() context: RedisContext) {
     this.logger.log(`收到支付成功事件 channel=${context.getChannel()}, orderId=${data.orderId}`);
-    this.ordersService.updateStatus(data.orderId, OrderStatus.PAID);
+    // 乐观锁冲突是可接受的并发语义(对方已更新成功),记录即可,绝不崩进程
+    this.ordersService.updateStatus(data.orderId, OrderStatus.PAID).catch((err) => {
+      if (err instanceof OptimisticLockVersionMismatchError) {
+        this.logger.warn(`支付事件:订单 ${data.orderId} 已被并发更新,跳过(乐观锁)`);
+      } else {
+        this.logger.error(`支付事件更新订单状态失败: ${(err as Error).message}`);
+      }
+    });
   }
 
   /**

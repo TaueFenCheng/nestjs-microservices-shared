@@ -1,5 +1,6 @@
 import { Controller, Get, Inject, Optional } from '@nestjs/common';
 import { HealthCheck, HealthCheckService, MemoryHealthIndicator } from '@nestjs/terminus';
+import { SkipThrottle } from '@nestjs/throttler';
 import { DatabaseService } from '../database/database.service';
 import { Public } from '../auth/public.decorator';
 
@@ -17,6 +18,7 @@ export class HealthController {
   ) {}
 
   @Public()
+  @SkipThrottle() // 探活端点不限流(限流对健康检查是反模式)
   @Get()
   @HealthCheck()
   check() {
