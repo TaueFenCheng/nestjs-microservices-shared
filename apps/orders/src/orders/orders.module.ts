@@ -11,7 +11,10 @@ import { OrderEntity } from '../entities/order.entity';
  */
 @Module({
   controllers: [OrdersController],
-  imports: [TypeOrmModule.forFeature([OrderEntity])],
+  imports: [
+    TypeOrmModule.forFeature([OrderEntity]), // 主库(master)
+    TypeOrmModule.forFeature([OrderEntity], 'slave'), // 只读副本(slave)
+  ],
   providers: [OrdersService, OrderTimeoutProcessor],
   exports: [OrdersService],
 })

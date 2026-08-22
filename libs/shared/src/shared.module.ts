@@ -10,6 +10,7 @@ import { OutboxModule, OutboxModuleOptions } from './modules/outbox/outbox.modul
 import { QueueModule, QueueModuleOptions } from './modules/queue/queue.module';
 import { QUEUE_NAMES } from './constants/queue-names';
 import { CircuitBreakerModule } from './modules/circuit-breaker/circuit-breaker.module';
+import { TransactionModule } from './modules/transaction/transaction.module';
 
 export interface SharedModuleOptions {
   /** 应用名(日志标识) */
@@ -45,6 +46,8 @@ export class SharedModule {
       HealthModule,
       // 熔断器(内存状态机,部署即得)
       CircuitBreakerModule,
+      // 声明式事务(未接库自动降级)
+      TransactionModule,
     ];
 
     if (options.database) {

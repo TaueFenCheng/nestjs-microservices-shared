@@ -63,6 +63,11 @@ export * from './modules/circuit-breaker/circuit-breaker.module';
 export * from './modules/circuit-breaker/circuit-breaker.service';
 export * from './modules/circuit-breaker/circuit-breaker.decorator';
 
+// ---------- 声明式事务(Spring @Transactional 风格) ----------
+export * from './modules/transaction/transaction.module';
+export * from './modules/transaction/transaction.service';
+export * from './modules/transaction/transaction.decorator';
+
 // ---------- 微服务抽象 ----------
 export * from './microservices/clients.module';
 export * from './microservices/client-proxy.factory';

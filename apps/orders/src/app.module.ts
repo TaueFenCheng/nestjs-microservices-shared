@@ -18,6 +18,17 @@ import { OrdersModule } from './orders/orders.module';
         user: process.env.DB_USER ?? 'postgres',
         password: process.env.DB_PASSWORD ?? 'postgres',
         database: process.env.DB_NAME ?? 'nestjs_microservices',
+        // 读写分离:读查询走命名副本(生产环境为独立只读实例,此处同库演示)
+        replicas: [
+          {
+            name: 'slave',
+            host: process.env.DB_SLAVE_HOST ?? process.env.DB_HOST ?? 'localhost',
+            port: Number(process.env.DB_PORT ?? 5432),
+            user: process.env.DB_USER ?? 'postgres',
+            password: process.env.DB_PASSWORD ?? 'postgres',
+            database: process.env.DB_NAME ?? 'nestjs_microservices',
+          },
+        ],
       },
       auth: { secret: process.env.JWT_SECRET ?? 'change-me' },
       reliability: {

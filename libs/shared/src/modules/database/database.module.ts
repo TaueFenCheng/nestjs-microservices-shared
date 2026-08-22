@@ -13,6 +13,8 @@ export interface DatabaseOptions {
   poolSize?: number;
   /** TypeORM 同步 schema(生产建议 false,用 migration) */
   synchronize?: boolean;
+  /** 只读副本(读写分离):每个副本注册为命名 DataSource,如 [{ name: 'slave' }] */
+  replicas?: Array<{ name: string; host?: string; port?: number; user?: string; password?: string; database?: string }>;
 }
 
 /**
@@ -55,27 +57,43 @@ export class DatabaseModule {
 
   /** PostgreSQL 模式:TypeORM 能力(实体注册用所在模块 forFeature,全局可用) */
   private static forPostgres(options: DatabaseOptions): DynamicModule {
+    const imports: unknown[] = [
+      TypeOrmModule.forRootAsync({
+        useFactory: () => this.postgresSource(options),
+      }),
+    ];
+
+    // 只读副本(读写分离):额外注册命名 DataSource,业务用 @InjectDataSource('slave') 注入
+    for (const replica of options.replicas ?? []) {
+      imports.push(
+        TypeOrmModule.forRootAsync({
+          name: replica.name,
+          useFactory: () => this.postgresSource({ ...options, ...replica }),
+        }),
+      );
+    }
+
     return {
       module: DatabaseModule,
       global: true,
-      imports: [
-        TypeOrmModule.forRootAsync({
-          useFactory: () => ({
-            type: 'postgres' as const,
-            host: options.host ?? 'localhost',
-            port: options.port ?? 5432,
-            username: options.user ?? 'postgres',
-            password: options.password ?? 'postgres',
-            database: options.database ?? 'nestjs_microservices',
-            autoLoadEntities: true, // 由各模块 forFeature 自动注册实体
-            synchronize: options.synchronize ?? false, // 生产用 migration
-            logging: ['error'],
-            // 连接池
-            extra: { max: options.poolSize ?? 10 },
-          }),
-        }),
-      ],
+      imports: imports as DynamicModule[],
       exports: [],
+    };
+  }
+
+  /** TypeORM 连接配置(主库/只读副本共用) */
+  private static postgresSource(options: DatabaseOptions) {
+    return {
+      type: 'postgres' as const,
+      host: options.host ?? 'localhost',
+      port: options.port ?? 5432,
+      username: options.user ?? 'postgres',
+      password: options.password ?? 'postgres',
+      database: options.database ?? 'nestjs_microservices',
+      autoLoadEntities: true,
+      synchronize: options.synchronize ?? false,
+      logging: ['error'] as ('error' | 'query' | 'warn')[],
+      extra: { max: options.poolSize ?? 10 },
     };
   }
 }

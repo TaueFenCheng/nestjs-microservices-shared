@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger, OnModuleInit } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { OptimisticLockVersionMismatchError, Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, OptimisticLockVersionMismatchError, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import {
   CreateOrderDto,
@@ -9,6 +9,8 @@ import {
   OrderStatus,
   PaginatedResult,
   QueueService,
+  Transactional,
+  TransactionManager,
 } from '@app/shared';
 import { OrderEntity } from '../entities/order.entity';
 
@@ -27,6 +29,7 @@ export class OrdersService implements OnModuleInit {
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
     private readonly queueService: QueueService,
     @InjectRepository(OrderEntity) private readonly repo: Repository<OrderEntity>,
+    @InjectDataSource('slave') private readonly slaveDs: DataSource,
   ) {}
 
   async onModuleInit() {
@@ -52,9 +55,18 @@ export class OrdersService implements OnModuleInit {
       });
   }
 
-  private async doCreate(dto: CreateOrderDto): Promise<Order> {
+  /**
+   * 真正写库 —— 声明式事务(@Transactional 对标 Spring)。
+   * @TransactionManager() 注入当前事务 EntityManager:同事务多写要么全成要么全回滚。
+   */
+  @Transactional()
+  private async doCreate(
+    dto: CreateOrderDto,
+    @TransactionManager() em?: EntityManager,
+  ): Promise<Order> {
     const totalAmount = dto.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-    const entity = this.repo.create({
+    const repo = em ? em.getRepository(OrderEntity) : this.repo;
+    const entity = repo.create({
       id: randomUUID(),
       userId: dto.userId,
       items: dto.items,
@@ -62,7 +74,8 @@ export class OrdersService implements OnModuleInit {
       status: OrderStatus.PENDING,
       remark: dto.remark ?? null,
     });
-    const saved = await this.repo.save(entity);
+    const saved = await repo.save(entity);
+    // 演示:事务内可继续多次写(订单 + 其他表),任一步失败整体回滚
     return this.toOrder(saved);
   }
 
@@ -72,10 +85,11 @@ export class OrdersService implements OnModuleInit {
   }
 
   async findAll(query: { page?: number; pageSize?: number }): Promise<PaginatedResult<Order>> {
-    // QueryBuilder 演示(对标 MyBatis 动态 SQL):分页
+    // 读写分离:读查询显式走只读副本(slave)。生产环境 slave 为独立只读实例。
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
-    const [items, total] = await this.repo
+    const repo = this.slaveDs.getRepository(OrderEntity);
+    const [items, total] = await repo
       .createQueryBuilder('o')
       .orderBy('o.createdAt', 'DESC')
       .skip((page - 1) * pageSize)
