@@ -34,7 +34,7 @@ export class OrdersController {
   @MessagePattern(MESSAGE_PATTERNS.ORDER_CREATE)
   create(
     @Payload() payload: { data: CreateOrderDto; meta: { requestId?: string } },
-  ): Order {
+  ): Promise<Order> {
     this.logger.log(`创建订单 requestId=${payload.meta?.requestId}`);
     return this.ordersService.create(payload.data);
   }

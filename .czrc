@@ -1,0 +1,18 @@
+{
+  "type": [
+    { "value": "feat", "name": "feat:  新功能" },
+    { "value": "fix", "name": "fix:   修复缺陷" },
+    { "value": "docs", "name": "docs:  文档变更(README、docs/ 等)" },
+    { "value": "style", "name": "style: 格式调整(不改变逻辑)" },
+    { "value": "refactor", "name": "refactor: 重构(不改变功能)" },
+    { "value": "perf", "name": "perf:  性能优化" },
+    { "value": "test", "name": "test:  测试相关" },
+    { "value": "build", "name": "build: 构建/依赖变更" },
+    { "value": "ci", "name": "ci:    CI 配置变更" },
+    { "value": "chore", "name": "chore: 杂项(工具、格式化等)" },
+    { "value": "revert", "name": "revert: 回滚提交" }
+  ],
+  "scope": "public|shared|orders|billing|api-gateway|docs|chore",
+  "useEmoji": false,
+  "maxHeaderLength": 72
+}

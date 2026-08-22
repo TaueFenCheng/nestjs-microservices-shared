@@ -16,6 +16,7 @@ import { LoginDto } from '@app/shared';
 import { AuthTokensDto } from '@app/shared';
 import { Order } from '@app/shared';
 import { PaginationDto } from '@app/shared';
+import { PaymentSagaResult, PaymentSagaService } from './saga/payment-saga.service';
 
 /**
  * 网关控制器 —— 编排层示例。
@@ -28,6 +29,7 @@ export class AppController {
   constructor(
     private readonly authService: AuthService,
     private readonly clientFactory: ClientProxyFactoryService,
+    private readonly paymentSaga: PaymentSagaService,
     @Inject(TOKENS.ORDERS_CLIENT) private readonly ordersClient: ClientProxy,
     @Inject(TOKENS.BILLING_CLIENT) private readonly billingClient: ClientProxy,
   ) {}
@@ -57,7 +59,7 @@ export class AppController {
 
   // ---------- 订单编排 ----------
 
-  /** 创建订单:调用 orders 微服务 */
+  /** 创建订单:调用 orders 微服务(带幂等键防重复下单) */
   @Post('orders')
   async createOrder(
     @Body() dto: CreateOrderDto,
@@ -95,24 +97,16 @@ export class AppController {
 
   // ---------- 支付编排 ----------
 
-  /** 对订单发起支付:调用 billing 微服务(演示多服务编排 + 角色控制) */
+  /**
+   * 对订单发起支付:支付 Saga(分布式锁 + 两步支付 + 失败自动补偿)。
+   * ?simulateFailure=true 时模拟支付网关失败,演示 Saga 反向补偿(退款+取消订单)。
+   */
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
   @Post('orders/:id/pay')
-  async payOrder(@Param('id') orderId: string) {
-    // 1. 先取订单(orders)
-    const order = await this.clientFactory.call<{ id: string }, Order>(
-      this.ordersClient,
-      MESSAGE_PATTERNS.ORDER_GET,
-      { id: orderId },
-      { requestId: 'gw-pay-1' },
-    );
-
-    // 2. 再发起支付(billing),演示"编排 + 数据聚合"
-    return this.clientFactory.call(
-      this.billingClient,
-      MESSAGE_PATTERNS.PAYMENT_CREATE,
-      { orderId: order.id, userId: order.userId, amount: order.totalAmount, method: 'ALIPAY' },
-      { requestId: 'gw-pay-2', userId: order.userId },
-    );
+  async payOrder(
+    @Param('id') orderId: string,
+    @Query('simulateFailure') simulateFailure?: string,
+  ): Promise<PaymentSagaResult> {
+    return this.paymentSaga.payOrder(orderId, simulateFailure === 'true');
   }
 }

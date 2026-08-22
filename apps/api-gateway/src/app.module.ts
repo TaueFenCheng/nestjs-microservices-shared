@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import {
   ClientsModule,
+  ClientProxyFactoryService,
   JwtAuthGuard,
   RolesGuard,
   SharedModule,
@@ -11,6 +12,7 @@ import {
 import { Transport } from '@nestjs/microservices';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { PaymentSagaService } from './saga/payment-saga.service';
 import configuration from './config/configuration';
 
 /**
@@ -28,6 +30,18 @@ import configuration from './config/configuration';
       appName: 'api-gateway',
       database: null,
       auth: { secret: process.env.JWT_SECRET ?? 'change-me', expiresIn: '1h' },
+      // 可靠性:Redis + 幂等 + 分布式锁 + Outbox(事件先持久化再由 relay 投递)
+      reliability: {
+        redis: {
+          host: process.env.REDIS_HOST ?? 'localhost',
+          port: Number(process.env.REDIS_PORT ?? 6379),
+        },
+        outbox: {
+          // relay 用 orders 的 Redis 客户端广播事件(orders/billing 都能收到)
+          client: TOKENS.ORDERS_CLIENT,
+          relayIntervalMs: 3000,
+        },
+      },
     }),
     // 微服务客户端:orders(Redis) + billing(TCP)
     ClientsModule.forFeature([
@@ -52,6 +66,8 @@ import configuration from './config/configuration';
   controllers: [AppController],
   providers: [
     AppService,
+    ClientProxyFactoryService,
+    PaymentSagaService,
     // 全局守卫:先 JWT 鉴权,再角色授权
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

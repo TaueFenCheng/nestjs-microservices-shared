@@ -52,4 +52,5 @@ export interface Payment {
   method: PaymentMethod;
   status: PaymentStatus;
   paidAt?: string;
+  createdAt?: string;
 }

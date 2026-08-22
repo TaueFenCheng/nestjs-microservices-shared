@@ -18,6 +18,7 @@ export const MESSAGE_PATTERNS = {
   // ---- 支付/计费域(billing 微服务) ----
   PAYMENT_CREATE: { cmd: 'payment.create' },
   PAYMENT_GET: { cmd: 'payment.get' },
+  PAYMENT_CONFIRM: { cmd: 'payment.confirm' }, // 确认扣款(模拟支付网关回调)
   PAYMENT_REFUND: { cmd: 'payment.refund' },
   PAYMENT_SUCCEEDED: 'payment.succeeded', // 事件
 

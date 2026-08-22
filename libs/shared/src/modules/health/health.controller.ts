@@ -1,4 +1,4 @@
-import { Controller, Get, Inject } from '@nestjs/common';
+import { Controller, Get, Inject, Optional } from '@nestjs/common';
 import { HealthCheck, HealthCheckService, MemoryHealthIndicator } from '@nestjs/terminus';
 import { DatabaseService } from '../database/database.service';
 import { Public } from '../auth/public.decorator';
@@ -12,6 +12,7 @@ export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
     private readonly memory: MemoryHealthIndicator,
+    @Optional()
     @Inject(DatabaseService) private readonly db?: DatabaseService,
   ) {}
 

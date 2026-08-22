@@ -4,7 +4,7 @@ import { OrdersModule } from './orders/orders.module';
 
 /**
  * orders 微服务根模块。
- * 同样只有几行:共享库一行接入日志/健康检查/数据库,业务模块自己注册。
+ * 开启 reliability:Redis 底座 + 幂等(下单防重)+ 分布式锁。
  */
 @Module({
   imports: [
@@ -12,6 +12,12 @@ import { OrdersModule } from './orders/orders.module';
       appName: 'orders',
       database: { type: 'memory' }, // 示例用内存;生产接真实数据库
       auth: { secret: process.env.JWT_SECRET ?? 'change-me' },
+      reliability: {
+        redis: {
+          host: process.env.REDIS_HOST ?? 'localhost',
+          port: Number(process.env.REDIS_PORT ?? 6379),
+        },
+      },
     }),
     OrdersModule,
   ],

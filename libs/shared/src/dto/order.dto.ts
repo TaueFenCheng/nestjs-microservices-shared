@@ -44,6 +44,11 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   remark?: string;
+
+  /** 幂等键:同一键重复提交只会创建一次订单(防重复下单) */
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
 }
 
 /** 订单状态更新(内部服务间调用用) */

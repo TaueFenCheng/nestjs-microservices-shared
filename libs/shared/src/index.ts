@@ -43,6 +43,16 @@ export * from './modules/auth/public.decorator';
 export * from './modules/auth/current-user.decorator';
 export * from './modules/health/health.module';
 
+// ---------- 可靠性(幂等 / 分布式锁 / Outbox / Redis 底座) ----------
+export * from './modules/redis/redis.module';
+export * from './modules/redis/redis.service';
+export * from './modules/idempotency/idempotency.module';
+export * from './modules/idempotency/idempotency.service';
+export * from './modules/lock/lock.module';
+export * from './modules/lock/distributed-lock.service';
+export * from './modules/outbox/outbox.module';
+export * from './modules/outbox/outbox.service';
+
 // ---------- 微服务抽象 ----------
 export * from './microservices/clients.module';
 export * from './microservices/client-proxy.factory';

@@ -3,6 +3,10 @@ import { DatabaseModule, DatabaseOptions } from './modules/database/database.mod
 import { AuthModule, AuthModuleOptions } from './modules/auth/auth.module';
 import { LoggerModule } from './modules/logger/logger.module';
 import { HealthModule } from './modules/health/health.module';
+import { RedisModule, RedisModuleOptions } from './modules/redis/redis.module';
+import { IdempotencyModule } from './modules/idempotency/idempotency.module';
+import { LockModule } from './modules/lock/lock.module';
+import { OutboxModule, OutboxModuleOptions } from './modules/outbox/outbox.module';
 
 export interface SharedModuleOptions {
   /** 应用名(日志标识) */
@@ -11,6 +15,11 @@ export interface SharedModuleOptions {
   database?: DatabaseOptions | null;
   /** 鉴权配置(JWT);传 null 表示不需要鉴权 */
   auth?: AuthModuleOptions | null;
+  /** 可靠性三件套(Redis 底座 + 幂等 + 分布式锁 + Outbox);传 null 表示不需要 */
+  reliability?: {
+    redis?: RedisModuleOptions;
+    outbox?: OutboxModuleOptions;
+  } | null;
 }
 
 /**
@@ -36,6 +45,14 @@ export class SharedModule {
     }
     if (options.auth) {
       imports.push(AuthModule.forRoot(options.auth));
+    }
+    // 可靠性底座:Redis 连接 + 幂等 + 分布式锁(可选 Outbox)
+    if (options.reliability?.redis) {
+      imports.push(RedisModule.forRoot(options.reliability.redis));
+      imports.push(IdempotencyModule, LockModule);
+      if (options.reliability.outbox) {
+        imports.push(OutboxModule.forRoot(options.reliability.outbox));
+      }
     }
 
     return {

@@ -126,6 +126,8 @@ curl -X POST http://localhost:3000/orders \
 | [`docs/04-microservice-abstractions.md`](docs/04-microservice-abstractions.md) | 微服务传输层抽象、请求-响应 vs 事件、超时重试、链路透传 |
 | [`docs/05-advanced-features.md`](docs/05-advanced-features.md) | NestJS 高级特性全景清单(含示例与适用场景) |
 | [`docs/06-go-live-checklist.md`](docs/06-go-live-checklist.md) | 上线清单、迁移步骤、生产注意事项 |
+| [`docs/07-lifecycle-hooks.md`](docs/07-lifecycle-hooks.md) | 生命周期钩子总结(启动序/关闭序/践行示例) |
+| [`docs/08-commit-convention.md`](docs/08-commit-convention.md) | Git 提交规范(commitlint + husky + commitizen 配置说明) |
 
 ---
 
@@ -151,6 +153,11 @@ curl -X POST http://localhost:3000/orders \
 | 14 | 健康检查 `@nestjs/terminus` | `HealthController` |
 | 15 | 配置 `@nestjs/config` | `ConfigModule` + `config/configuration.ts` |
 | 16 | 聚合模块一行接入 | `SharedModule.forRoot(...)` |
+| 17 | 幂等去重(Redis SET NX EX)+ 防重复下单/扣款 | `IdempotencyService` + `orders/billing` |
+| 18 | 分布式锁(SET NX PX + Lua 原子释放)+ 防误删 | `DistributedLockService` + `PaymentSagaService` |
+| 19 | 支付 Saga:两步支付 + 失败自动补偿(退款+取消) | `apps/api-gateway/src/saga/payment-saga.service.ts` |
+| 20 | Outbox 可靠事件(先持久化再投递,失败重试进死信) | `OutboxService` + `OutboxModule` |
+| 21 | Commit 规范(commitlint + husky + commitizen) | `.commitlintrc.json`、`.husky/` |
 
 ---
 

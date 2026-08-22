@@ -17,6 +17,10 @@ export const TOKENS = {
   ORDERS_CLIENT: Symbol('ORDERS_CLIENT'),
   /** 计费服务客户端代理(网关注入) */
   BILLING_CLIENT: Symbol('BILLING_CLIENT'),
+  /** Outbox 发布客户端(relay 用它 emit 事件) */
+  OUTBOX_CLIENT: Symbol('OUTBOX_CLIENT'),
+  /** Outbox relay 轮询间隔(毫秒) */
+  OUTBOX_RELAY_INTERVAL_MS: Symbol('OUTBOX_RELAY_INTERVAL_MS'),
 } as const;
 
 export type Token = (typeof TOKENS)[keyof typeof TOKENS];
