@@ -18,6 +18,13 @@ import { OrdersModule } from './orders/orders.module';
           port: Number(process.env.REDIS_PORT ?? 6379),
         },
       },
+      // 任务队列:BullMQ(下单超时自动取消)
+      queue: {
+        connection: {
+          host: process.env.REDIS_HOST ?? 'localhost',
+          port: Number(process.env.REDIS_PORT ?? 6379),
+        },
+      },
     }),
     OrdersModule,
   ],

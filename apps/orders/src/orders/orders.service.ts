@@ -1,4 +1,4 @@
-import { Injectable, Inject, OnModuleInit } from '@nestjs/common';
+import { Injectable, Inject, Logger, OnModuleInit } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
   CreateOrderDto,
@@ -6,6 +6,7 @@ import {
   Order,
   OrderStatus,
   PaginatedResult,
+  QueueService,
 } from '@app/shared';
 
 /**
@@ -14,14 +15,17 @@ import {
  *
  * 高级特性演示:
  *  - OnModuleInit 生命周期钩子(初始化种子数据);
- *  - 幂等创建:同一 idempotencyKey 重复提交只创建一单(防重复下单)。
+ *  - 幂等创建:同一 idempotencyKey 重复提交只创建一单(防重复下单);
+ *  - 下单后调度延迟任务:超时未支付自动取消(BullMQ 队列)。
  */
 @Injectable()
 export class OrdersService implements OnModuleInit {
   private readonly store = new Map<string, Order>();
+  private readonly logger = new Logger(OrdersService.name);
 
   constructor(
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
+    private readonly queueService: QueueService,
   ) {}
 
   async onModuleInit() {
@@ -35,11 +39,26 @@ export class OrdersService implements OnModuleInit {
    */
   create(dto: CreateOrderDto): Promise<Order> {
     if (!dto.idempotencyKey) {
-      return Promise.resolve(this.doCreate(dto));
+      const order = this.doCreate(dto);
+      void this.scheduleAutoCancel(order);
+      return Promise.resolve(order);
     }
     return this.idempotency
       .execute(`order:create:${dto.idempotencyKey}`, 86400, async () => this.doCreate(dto))
-      .then(({ data }) => data);
+      .then(({ data }) => {
+        void this.scheduleAutoCancel(data);
+        return data;
+      });
+  }
+
+  /** 调度超时自动取消;调度失败不影响下单(仅告警) */
+  private scheduleAutoCancel(order: Order): void {
+    const delaySeconds = Number(process.env.ORDER_AUTO_CANCEL_SECONDS ?? 1800);
+    this.queueService
+      .scheduleOrderAutoCancel(order.id, delaySeconds * 1000)
+      .catch((err) =>
+        this.logger.warn(`调度订单超时任务失败: ${order.id} ${(err as Error).message}`),
+      );
   }
 
   /** 真正的下单逻辑(防篡改:金额一律服务端计算) */

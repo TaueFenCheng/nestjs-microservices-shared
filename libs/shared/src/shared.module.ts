@@ -7,6 +7,8 @@ import { RedisModule, RedisModuleOptions } from './modules/redis/redis.module';
 import { IdempotencyModule } from './modules/idempotency/idempotency.module';
 import { LockModule } from './modules/lock/lock.module';
 import { OutboxModule, OutboxModuleOptions } from './modules/outbox/outbox.module';
+import { QueueModule, QueueModuleOptions } from './modules/queue/queue.module';
+import { QUEUE_NAMES } from './constants/queue-names';
 
 export interface SharedModuleOptions {
   /** 应用名(日志标识) */
@@ -20,6 +22,8 @@ export interface SharedModuleOptions {
     redis?: RedisModuleOptions;
     outbox?: OutboxModuleOptions;
   } | null;
+  /** 任务队列(BullMQ);传 null 表示不需要 */
+  queue?: QueueModuleOptions | null;
 }
 
 /**
@@ -53,6 +57,11 @@ export class SharedModule {
       if (options.reliability.outbox) {
         imports.push(OutboxModule.forRoot(options.reliability.outbox));
       }
+    }
+    // 任务队列:BullMQ 连接 + 公共队列注册
+    if (options.queue) {
+      imports.push(QueueModule.forRoot(options.queue));
+      imports.push(QueueModule.forFeature([QUEUE_NAMES.ORDER_TIMEOUT]));
     }
 
     return {

@@ -28,6 +28,7 @@ export * from './interfaces/service-request.interface';
 export * from './constants/error-codes';
 export * from './constants/message-patterns';
 export * from './constants/tokens';
+export * from './constants/queue-names';
 
 // ---------- 公共模块 ----------
 export * from './modules/logger/logger.module';
@@ -52,6 +53,10 @@ export * from './modules/lock/lock.module';
 export * from './modules/lock/distributed-lock.service';
 export * from './modules/outbox/outbox.module';
 export * from './modules/outbox/outbox.service';
+
+// ---------- 任务队列(BullMQ) ----------
+export * from './modules/queue/queue.module';
+export * from './modules/queue/queue.service';
 
 // ---------- 微服务抽象 ----------
 export * from './microservices/clients.module';

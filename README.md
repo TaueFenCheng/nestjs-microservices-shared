@@ -154,10 +154,11 @@ curl -X POST http://localhost:3000/orders \
 | 15 | 配置 `@nestjs/config` | `ConfigModule` + `config/configuration.ts` |
 | 16 | 聚合模块一行接入 | `SharedModule.forRoot(...)` |
 | 17 | 幂等去重(Redis SET NX EX)+ 防重复下单/扣款 | `IdempotencyService` + `orders/billing` |
-| 18 | 分布式锁(SET NX PX + Lua 原子释放)+ 防误删 | `DistributedLockService` + `PaymentSagaService` |
+| 18 | 分布式锁(SET NX PX + Lua 原子释放 + 看门狗自动续期) | `DistributedLockService` + `PaymentSagaService` |
 | 19 | 支付 Saga:两步支付 + 失败自动补偿(退款+取消) | `apps/api-gateway/src/saga/payment-saga.service.ts` |
 | 20 | Outbox 可靠事件(先持久化再投递,失败重试进死信) | `OutboxService` + `OutboxModule` |
 | 21 | Commit 规范(commitlint + husky + commitizen) | `.commitlintrc.json`、`.husky/` |
+| 22 | 任务队列 BullMQ(延迟任务/自动取消/重试) | `QueueModule`、`OrderTimeoutProcessor` |
 
 ---
 
