@@ -1,6 +1,7 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
+  CircuitBreaker,
   CreatePaymentDto,
   IdempotencyService,
   Payment,
@@ -13,6 +14,7 @@ import {
 @Injectable()
 export class BillingService {
   private readonly store = new Map<string, Payment>();
+  private readonly logger = new Logger(BillingService.name);
 
   constructor(
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
@@ -53,10 +55,15 @@ export class BillingService {
   }
 
   /**
-   * 确认扣款 —— 模拟支付网关回调。
-   * @param simulateFailure 演示 Saga 补偿:true 时模拟"钱已扣、但确认通知失败",
-   *                        此时支付单为 SUCCEEDED,需走退款补偿(状态机不允许	仅取消)。
+   * 确认扣款 —— 模拟支付网关回调(带熔断器,对标 Resilience4j)。
+   * 连续失败 threshold 次 -> 熔断,后续请求快速失败(不真的打网关);
+   * 熔断期间走 fallback(降级回应)。
    */
+  @CircuitBreaker('payment-gateway', {
+    failureThreshold: 3,
+    recoveryTimeoutMs: 8_000,
+    fallback: 'payGatewayFallback',
+  })
   async confirmPayment(id: string, simulateFailure = false): Promise<PaymentResultDto> {
     const payment = this.store.get(id);
     if (!payment) throw new Error(`支付单不存在: ${id}`);
@@ -76,6 +83,17 @@ export class BillingService {
     payment.status = PaymentStatus.SUCCEEDED;
     payment.paidAt = new Date().toISOString();
     return this.toResult(payment);
+  }
+
+  /** 熔断降级回应:告诉调用方付款状态待定(并非用户余额问题,而是依赖不可用) */
+  private payGatewayFallback(err: Error): PaymentResultDto {
+    this.logger.warn(`支付网关熔断降级: ${err.message}`);
+    return {
+      paymentId: 'unknown',
+      orderId: 'unknown',
+      status: PaymentStatus.CREATED,
+      errorMessage: `支付网关暂不可用,请稍后重试(熔断降级): ${err.message}`,
+    };
   }
 
   findById(id: string): Payment | undefined {

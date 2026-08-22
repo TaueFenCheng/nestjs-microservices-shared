@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Inject, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import {
   AuthService,
@@ -11,6 +11,7 @@ import {
   CurrentUser,
   AuthenticatedUser,
   ClientProxyFactoryService,
+  QUEUE_NAMES,
 } from '@app/shared';
 import { LoginDto } from '@app/shared';
 import { AuthTokensDto } from '@app/shared';
@@ -26,12 +27,15 @@ import { PaymentSagaResult, PaymentSagaService } from './saga/payment-saga.servi
  */
 @Controller()
 export class AppController {
+  private readonly logger = new Logger(AppController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly clientFactory: ClientProxyFactoryService,
     private readonly paymentSaga: PaymentSagaService,
     @Inject(TOKENS.ORDERS_CLIENT) private readonly ordersClient: ClientProxy,
     @Inject(TOKENS.BILLING_CLIENT) private readonly billingClient: ClientProxy,
+    @Inject(TOKENS.ORDERS_RMQ_CLIENT) private readonly ordersRmqClient: ClientProxy,
   ) {}
 
   // ---------- 鉴权 ----------
@@ -65,12 +69,24 @@ export class AppController {
     @Body() dto: CreateOrderDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<Order> {
-    return this.clientFactory.call(
+    const order = await this.clientFactory.call<CreateOrderDto, Order>(
       this.ordersClient,
       MESSAGE_PATTERNS.ORDER_CREATE,
       { ...dto, userId: user.id },
       { requestId: 'gw-1', userId: user.id },
     );
+
+    // 演示 RabbitMQ 点对点队列:发布订单创建事件(orders 侧手动 ack 消费)
+    // 对比 Redis pub/sub 广播:队列语义是"一条消息只被一个消费者处理一次"
+    this.ordersRmqClient.emit(QUEUE_NAMES.ORDER_EVENTS_RMQ, {
+      orderId: order.id,
+      userId: order.userId,
+      totalAmount: order.totalAmount,
+      ts: Date.now(),
+    });
+    this.logger.log(`已发布订单事件到 RabbitMQ 队列: ${QUEUE_NAMES.ORDER_EVENTS_RMQ}`);
+
+    return order;
   }
 
   /** 查询订单:调用 orders 微服务 */

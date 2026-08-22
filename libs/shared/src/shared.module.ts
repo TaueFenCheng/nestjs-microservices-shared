@@ -9,6 +9,7 @@ import { LockModule } from './modules/lock/lock.module';
 import { OutboxModule, OutboxModuleOptions } from './modules/outbox/outbox.module';
 import { QueueModule, QueueModuleOptions } from './modules/queue/queue.module';
 import { QUEUE_NAMES } from './constants/queue-names';
+import { CircuitBreakerModule } from './modules/circuit-breaker/circuit-breaker.module';
 
 export interface SharedModuleOptions {
   /** 应用名(日志标识) */
@@ -42,6 +43,8 @@ export class SharedModule {
     const imports: Array<Type<unknown> | DynamicModule> = [
       LoggerModule.forRoot({ appName: options.appName }),
       HealthModule,
+      // 熔断器(内存状态机,部署即得)
+      CircuitBreakerModule,
     ];
 
     if (options.database) {

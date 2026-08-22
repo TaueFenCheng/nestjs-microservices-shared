@@ -58,6 +58,11 @@ export * from './modules/outbox/outbox.service';
 export * from './modules/queue/queue.module';
 export * from './modules/queue/queue.service';
 
+// ---------- 熔断器(Resilience4j 风格) ----------
+export * from './modules/circuit-breaker/circuit-breaker.module';
+export * from './modules/circuit-breaker/circuit-breaker.service';
+export * from './modules/circuit-breaker/circuit-breaker.decorator';
+
 // ---------- 微服务抽象 ----------
 export * from './microservices/clients.module';
 export * from './microservices/client-proxy.factory';

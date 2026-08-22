@@ -14,9 +14,10 @@ import {
   Order,
   OrderStatus,
   PaginatedResult,
+  QUEUE_NAMES,
   UpdateOrderStatusDto,
 } from '@app/shared';
-import { RedisContext } from '@nestjs/microservices';
+import { RedisContext, RmqContext } from '@nestjs/microservices';
 
 /**
  * 订单微服务控制器。
@@ -70,5 +71,24 @@ export class OrdersController {
   onPaymentSucceeded(@Payload() data: { orderId: string }, @Ctx() context: RedisContext) {
     this.logger.log(`收到支付成功事件 channel=${context.getChannel()}, orderId=${data.orderId}`);
     this.ordersService.updateStatus(data.orderId, OrderStatus.PAID);
+  }
+
+  /**
+   * RabbitMQ 队列消费者:订单创建事件(点对点)。
+   * 演示手动 ack:处理成功后 ack,异常时 nack 并 requeue(回到队列重试)。
+   * 与 Redis broadcast 的区别:这条消息只被消费一次(竞争消费者之间)。
+   */
+  @EventPattern(QUEUE_NAMES.ORDER_EVENTS_RMQ)
+  async onOrderCreatedRmq(@Payload() payload: unknown, @Ctx() context: RmqContext) {
+    const channel = context.getChannelRef();
+    const message = context.getMessage();
+    try {
+      this.logger.log(`[RMQ] 收到订单创建事件(手动 ack): ${JSON.stringify(payload)}`);
+      // 业务处理(示例:记录对账/通知等,这里只是消费确认)
+      channel.ack(message); // 确认:消息出队
+    } catch (err) {
+      this.logger.error(`[RMQ] 处理失败,requeue: ${(err as Error).message}`);
+      channel.nack(message, false, true); // requeue,交给后续重试
+    }
   }
 }

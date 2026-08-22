@@ -32,6 +32,11 @@ async function bootstrap() {
     },
   });
 
+  // 显式触发应用初始化生命周期(onModuleInit/onApplicationBootstrap)。
+  // 注意:混合应用只调 startAllMicroservices() 时 Nest 不会自动走完整
+  // init() 流程,依赖这些钩子的模块(Redis 连接、熔断注册表、BullMQ worker)会失效。
+  await app.init();
+
   await app.startAllMicroservices();
   logger.log(`billing 微服务已启动,监听 TCP :${port} + Redis 事件`);
 }

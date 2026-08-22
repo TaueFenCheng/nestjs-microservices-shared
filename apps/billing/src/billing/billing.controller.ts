@@ -4,6 +4,7 @@ import { BillingService } from './billing.service';
 import {
   ConfirmPaymentDto,
   CreatePaymentDto,
+  CircuitBreakerOpenException,
   ErrorCode,
   MESSAGE_PATTERNS,
   Payment,
@@ -46,6 +47,13 @@ export class BillingController {
     try {
       return this.billingService.confirmPayment(payload.data.id, payload.data.simulateFailure);
     } catch (err) {
+      // 熔断快速失败:归为服务不可用(503),与业务失败区分开
+      if (err instanceof CircuitBreakerOpenException) {
+        throw new RpcException({
+          code: ErrorCode.SERVICE_UNAVAILABLE,
+          message: err.message,
+        });
+      }
       // 确认失败是业务失败:抛统一错误码,网关 Saga 捕获后走补偿
       throw new RpcException({
         code: ErrorCode.PAYMENT_FAILED,

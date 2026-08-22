@@ -5,6 +5,7 @@ import {
   ClientsModule,
   ClientProxyFactoryService,
   JwtAuthGuard,
+  QUEUE_NAMES,
   RolesGuard,
   SharedModule,
   TOKENS,
@@ -59,6 +60,15 @@ import configuration from './config/configuration';
           transport: Transport.TCP,
           host: 'localhost',
           port: Number(process.env.BILLING_TCP_PORT ?? 4001),
+        },
+      },
+      // RabbitMQ 客户端:点对点队列发布订单事件(与 Redis 广播对比演示)
+      {
+        provide: TOKENS.ORDERS_RMQ_CLIENT,
+        options: {
+          transport: Transport.RMQ,
+          url: process.env.RABBITMQ_URL ?? 'amqp://localhost:5672',
+          queue: QUEUE_NAMES.ORDER_EVENTS_RMQ,
         },
       },
     ]),

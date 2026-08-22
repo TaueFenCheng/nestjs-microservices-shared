@@ -6,6 +6,9 @@ export interface MicroserviceClientOptions {
   transport: Transport;
   host?: string;
   port?: number;
+  /** RabbitMQ:AMQP 连接串,如 amqp://guest:guest@localhost:5672 */
+  url?: string;
+  /** RabbitMQ 队列名 / Kafka topic */
   queue?: string;
   brokers?: string[];
   /** 额外透传给 ClientProxyFactory.create 的选项 */
@@ -41,6 +44,8 @@ export class ClientsModule {
             port: options.port,
             queue: options.queue,
             brokers: options.brokers,
+            // RabbitMQ 需要 urls 数组形式
+            ...(options.url ? { urls: [options.url] } : {}),
             ...options.extra,
           },
         } as ClientOptions),

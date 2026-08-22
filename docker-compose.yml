@@ -10,6 +10,19 @@ services:
       - "6379:6379"
     command: ["redis-server", "--appendonly", "yes"]
 
+  # RabbitMQ:点对点消息队列(RMQ transport 演示,手动 ack / 死信)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ms-shared-rabbitmq
+    ports:
+      - "5672:5672"     # AMQP 协议端口
+      - "15672:15672"   # 管理控制台 http://localhost:15672 (guest/guest)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # 如需真实数据库,取消注释并复制 .env.example -> .env
   # postgres:
   #   image: postgres:16-alpine

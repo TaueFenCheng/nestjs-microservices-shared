@@ -10,6 +10,7 @@ import {
   OutboxService,
   PaymentMethod,
   PaymentResultDto,
+  PaymentStatus,
   TOKENS,
 } from '@app/shared';
 
@@ -21,7 +22,7 @@ export interface CompensationRecord {
 }
 
 export interface PaymentSagaResult {
-  sagaStatus: 'SUCCEEDED' | 'COMPENSATED' | 'PAYMENT_CREATE_FAILED';
+  sagaStatus: 'SUCCEEDED' | 'COMPENSATED' | 'PAYMENT_CREATE_FAILED' | 'PAYMENT_NOT_SUCCEEDED';
   orderId: string;
   order?: Order;
   payment?: PaymentResultDto;
@@ -126,6 +127,24 @@ export class PaymentSagaService {
           );
         });
         return this.fail(orderId, 'PAYMENT_CONFIRM_FAILED', err, compensations);
+      }
+
+      // 支付未真正成功(如熔断降级返回 CREATED,或网关返回失败):取消订单,不退款(资金未扣)
+      if (confirmed.status !== PaymentStatus.SUCCEEDED) {
+        await this.safeCompensate(compensations, 'ORDER_CANCEL', orderId, async () => {
+          await this.clientFactory.call(
+            this.ordersClient,
+            MESSAGE_PATTERNS.ORDER_CANCEL,
+            { orderId, status: OrderStatus.CANCELLED },
+            { requestId: `saga-${orderId}` },
+          );
+        });
+        return this.fail(
+          orderId,
+          'PAYMENT_NOT_SUCCEEDED',
+          new Error(confirmed.errorMessage ?? '支付未成功'),
+          compensations,
+        );
       }
 
       // ---- 步骤 4:成功 -> 事件写入 Outbox(可靠投递,订单最终 PAID)----

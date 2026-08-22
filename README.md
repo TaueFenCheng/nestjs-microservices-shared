@@ -159,6 +159,9 @@ curl -X POST http://localhost:3000/orders \
 | 20 | Outbox 可靠事件(先持久化再投递,失败重试进死信) | `OutboxService` + `OutboxModule` |
 | 21 | Commit 规范(commitlint + husky + commitizen) | `.commitlintrc.json`、`.husky/` |
 | 22 | 任务队列 BullMQ(延迟任务/自动取消/重试) | `QueueModule`、`OrderTimeoutProcessor` |
+| 23 | 熔断器 `@CircuitBreaker`(Resilience4j 风格状态机 + fallback) | `circuit-breaker/` + `billing.confirmPayment` |
+| 24 | RabbitMQ 点对点队列(手动 ack / requeue,与 Redis 广播对比) | `Transport.RMQ` + `orders.main.ts`、RMQ 客户端 |
+| 25 | 混合应用生命周期修复 `await app.init()` | `apps/*/main.ts`(注释讲解坑) |
 
 ---
 

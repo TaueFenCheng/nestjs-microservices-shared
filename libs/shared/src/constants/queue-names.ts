@@ -5,6 +5,8 @@
 export const QUEUE_NAMES = {
   /** 订单治理队列:延迟任务(下单未支付自动取消等) */
   ORDER_TIMEOUT: 'order-timeout',
+  /** RabbitMQ 点对点队列:订单创建事件(与 Redis 广播对比) */
+  ORDER_EVENTS_RMQ: 'order-events',
 } as const;
 
 /** 队列任务名 */

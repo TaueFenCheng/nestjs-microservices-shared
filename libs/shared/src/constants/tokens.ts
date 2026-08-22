@@ -17,6 +17,8 @@ export const TOKENS = {
   ORDERS_CLIENT: Symbol('ORDERS_CLIENT'),
   /** 计费服务客户端代理(网关注入) */
   BILLING_CLIENT: Symbol('BILLING_CLIENT'),
+  /** 订单服务 RabbitMQ 客户端(点对点队列演示) */
+  ORDERS_RMQ_CLIENT: Symbol('ORDERS_RMQ_CLIENT'),
   /** Outbox 发布客户端(relay 用它 emit 事件) */
   OUTBOX_CLIENT: Symbol('OUTBOX_CLIENT'),
   /** Outbox relay 轮询间隔(毫秒) */
