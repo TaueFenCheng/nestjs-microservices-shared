@@ -8,6 +8,7 @@ import {
   PaymentMethod,
   PaymentResultDto,
   PaymentStatus,
+  Retryable,
 } from '@app/shared';
 
 /** 计费服务 —— 领域逻辑(内存实现) */
@@ -21,9 +22,10 @@ export class BillingService {
   ) {}
 
   /**
-   * 创建支付单(幂等:同一订单只创建一张支付单)。
-   * 两步支付模型:create(创建/冻结)-> confirm(确认扣款)。
+   * 创建支付单(@Retryable 演示:调用支付网关的瞬时失败做指数退避重试;
+   * 幂等保证重试不产生重复支付单)。
    */
+  @Retryable({ maxAttempts: 3, backoffMs: 200 })
   async createPayment(dto: CreatePaymentDto): Promise<PaymentResultDto> {
     const { data } = await this.idempotency.execute(
       `payment:create:${dto.orderId}`,

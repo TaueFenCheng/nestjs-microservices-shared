@@ -85,5 +85,10 @@ export * from './pipes/validation.pipe';
 // ---------- 工具 ----------
 export * from './utils/request-context';
 
+// ---------- 装饰器族(@Retryable / @Cacheable / @Idempotent) ----------
+export * from './modules/decorators/retryable.decorator';
+export * from './modules/decorators/cacheable.decorator';
+export * from './modules/decorators/idempotent.decorator';
+
 // ---------- 聚合模块 ----------
 export * from './shared.module';

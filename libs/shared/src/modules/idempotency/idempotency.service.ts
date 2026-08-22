@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import Redis from 'ioredis';
 import { TOKENS } from '../../constants/tokens';
 
@@ -10,6 +10,15 @@ export interface IdempotencyResult<T> {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// ---------- 注册表:@Idempotent 装饰器运行时取实例 ----------
+let idempotencyRegistry: IdempotencyService | null = null;
+export function setIdempotencyRegistry(instance: IdempotencyService | null): void {
+  idempotencyRegistry = instance;
+}
+export function getIdempotencyRegistry(): IdempotencyService | null {
+  return idempotencyRegistry;
+}
 
 /**
  * 幂等服务 —— 基于 Redis SET NX EX 的"去重 + 结果缓存"。
@@ -27,10 +36,14 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * 分布式锁或数据库唯一约束);fn 抛错时会清除占位,允许后续重试。
  */
 @Injectable()
-export class IdempotencyService {
+export class IdempotencyService implements OnModuleInit {
   private readonly logger = new Logger(IdempotencyService.name);
 
   constructor(@Inject(TOKENS.REDIS_CLIENT) private readonly client: Redis) {}
+
+  onModuleInit(): void {
+    setIdempotencyRegistry(this);
+  }
 
   /**
    * 幂等执行。

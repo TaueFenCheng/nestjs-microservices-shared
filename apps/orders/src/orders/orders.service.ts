@@ -1,10 +1,17 @@
-import { Injectable, Inject, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, OptimisticLockVersionMismatchError, Repository } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  OptimisticLockVersionMismatchError,
+  Repository,
+} from 'typeorm';
 import { randomUUID } from 'crypto';
 import {
+  Cacheable,
   CreateOrderDto,
-  IdempotencyService,
+  evictCache,
+  Idempotent,
   Order,
   OrderStatus,
   PaginatedResult,
@@ -16,17 +23,17 @@ import { OrderEntity } from '../entities/order.entity';
 
 /**
  * 订单服务 —— 真实存储层(TypeORM + PostgreSQL)版本。
- * 与内存版的区别:store 换成 Repository,并在写入路径演示：
- *  - 幂等创建(同一 idempotencyKey 只建一单);
- *  - 队列调度(超时自动取消);
- *  - 乐观锁更新(updateStatus 失败抛版本冲突)。
+ * 演示的 Java 风格注解族:
+ *  - @Idempotent:幂等创建(同一 idempotencyKey 只建一单);
+ *  - @Transactional + @TransactionManager:声明式事务写;
+ *  - @Cacheable:读缓存(30s)减少 slave 压力,写路径 evict 失效;
+ *  - 乐观锁更新(updateStatus 冲突抛版本错)。
  */
 @Injectable()
 export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
 
   constructor(
-    @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
     private readonly queueService: QueueService,
     @InjectRepository(OrderEntity) private readonly repo: Repository<OrderEntity>,
     @InjectDataSource('slave') private readonly slaveDs: DataSource,
@@ -37,22 +44,18 @@ export class OrdersService implements OnModuleInit {
   }
 
   /**
-   * 创建订单(幂等)。客户端带 idempotencyKey 时,重复请求返回首次创建的同一订单。
-   * 写入 PostgreSQL;金额服务端计算,不信赖客户端。
+   * 创建订单 —— @Idempotent 注解版(对标 Java @Idempotent)。
+   * 同一 idempotencyKey 重复提交返回首次创建的同一订单,副作用只发生一次。
    */
+  @Idempotent('order:create', {
+    key: (dto: CreateOrderDto) => dto.idempotencyKey,
+    ttlSeconds: 86400,
+  })
   create(dto: CreateOrderDto): Promise<Order> {
-    if (!dto.idempotencyKey) {
-      return this.doCreate(dto).then((o) => {
-        void this.scheduleAutoCancel(o);
-        return o;
-      });
-    }
-    return this.idempotency
-      .execute(`order:create:${dto.idempotencyKey}`, 86400, async () => this.doCreate(dto))
-      .then(({ data }) => {
-        void this.scheduleAutoCancel(data);
-        return data;
-      });
+    return this.doCreate(dto).then((o) => {
+      void this.scheduleAutoCancel(o);
+      return o;
+    });
   }
 
   /**
@@ -84,6 +87,11 @@ export class OrdersService implements OnModuleInit {
     return entity ? this.toOrder(entity) : undefined;
   }
 
+  /**
+   * 订单列表(分页) —— @Cacheable 注解版:缓存 30s 减少读压力。
+   * 写路径(updateStatus)已调用 evictCache 失效缓存,防脏读。
+   */
+  @Cacheable('orders:list', { ttlMs: 30_000 })
   async findAll(query: { page?: number; pageSize?: number }): Promise<PaginatedResult<Order>> {
     // 读写分离:读查询显式走只读副本(slave)。生产环境 slave 为独立只读实例。
     const page = query.page ?? 1;
@@ -135,6 +143,9 @@ export class OrdersService implements OnModuleInit {
         entity.version + 1,
       );
     }
+
+    // 写路径:失效订单列表缓存(防脏读)
+    evictCache('orders:list');
 
     const fresh = await this.repo.findOneBy({ id });
     return this.toOrder(fresh!);
