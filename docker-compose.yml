@@ -23,13 +23,18 @@ services:
       timeout: 5s
       retries: 5
 
-  # 如需真实数据库,取消注释并复制 .env.example -> .env
-  # postgres:
-  #   image: postgres:16-alpine
-  #   container_name: ms-shared-postgres
-  #   environment:
-  #     POSTGRES_USER: postgres
-  #     POSTGRES_PASSWORD: postgres
-  #     POSTGRES_DB: nestjs_microservices
-  #   ports:
-  #     - "5432:5432"
+  # 真实数据库:接入 TypeORM 示例(orders 微服务使用)
+  postgres:
+    image: postgres:16-alpine
+    container_name: ms-shared-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nestjs_microservices
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

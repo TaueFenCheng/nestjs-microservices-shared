@@ -23,7 +23,7 @@ export class OrderTimeoutProcessor extends WorkerHost {
 
   async process(job: Job<{ orderId: string }>): Promise<void> {
     const { orderId } = job.data;
-    const order = this.ordersService.findById(orderId);
+    const order = await this.ordersService.findById(orderId);
     if (!order) {
       this.logger.warn(`超时任务:订单不存在,忽略 ${orderId}`);
       return;
@@ -33,7 +33,7 @@ export class OrderTimeoutProcessor extends WorkerHost {
       return;
     }
 
-    this.ordersService.updateStatus(orderId, OrderStatus.CANCELLED);
+    await this.ordersService.updateStatus(orderId, OrderStatus.CANCELLED);
     this.logger.log(`订单超时未支付,自动取消: ${orderId}`);
   }
 }

@@ -10,7 +10,15 @@ import { OrdersModule } from './orders/orders.module';
   imports: [
     SharedModule.forRoot({
       appName: 'orders',
-      database: { type: 'memory' }, // 示例用内存;生产接真实数据库
+      // 真实数据库:TypeORM + PostgreSQL(接库演示,含 migration)
+      database: {
+        type: 'postgres',
+        host: process.env.DB_HOST ?? 'localhost',
+        port: Number(process.env.DB_PORT ?? 5432),
+        user: process.env.DB_USER ?? 'postgres',
+        password: process.env.DB_PASSWORD ?? 'postgres',
+        database: process.env.DB_NAME ?? 'nestjs_microservices',
+      },
       auth: { secret: process.env.JWT_SECRET ?? 'change-me' },
       reliability: {
         redis: {

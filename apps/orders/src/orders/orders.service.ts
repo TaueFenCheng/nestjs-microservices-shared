@@ -1,4 +1,6 @@
 import { Injectable, Inject, Logger, OnModuleInit } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { OptimisticLockVersionMismatchError, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import {
   CreateOrderDto,
@@ -8,24 +10,23 @@ import {
   PaginatedResult,
   QueueService,
 } from '@app/shared';
+import { OrderEntity } from '../entities/order.entity';
 
 /**
- * 订单服务 —— 领域逻辑。
- * 使用内存 Map 存储(演示用),生产替换为 TypeORM/Prisma。
- *
- * 高级特性演示:
- *  - OnModuleInit 生命周期钩子(初始化种子数据);
- *  - 幂等创建:同一 idempotencyKey 重复提交只创建一单(防重复下单);
- *  - 下单后调度延迟任务:超时未支付自动取消(BullMQ 队列)。
+ * 订单服务 —— 真实存储层(TypeORM + PostgreSQL)版本。
+ * 与内存版的区别:store 换成 Repository,并在写入路径演示：
+ *  - 幂等创建(同一 idempotencyKey 只建一单);
+ *  - 队列调度(超时自动取消);
+ *  - 乐观锁更新(updateStatus 失败抛版本冲突)。
  */
 @Injectable()
 export class OrdersService implements OnModuleInit {
-  private readonly store = new Map<string, Order>();
   private readonly logger = new Logger(OrdersService.name);
 
   constructor(
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
     private readonly queueService: QueueService,
+    @InjectRepository(OrderEntity) private readonly repo: Repository<OrderEntity>,
   ) {}
 
   async onModuleInit() {
@@ -33,15 +34,15 @@ export class OrdersService implements OnModuleInit {
   }
 
   /**
-   * 创建订单(幂等)。
-   * 客户端带 idempotencyKey 时,重复请求返回首次创建的同一订单;
-   * 不带则退化为普通创建(向后兼容)。
+   * 创建订单(幂等)。客户端带 idempotencyKey 时,重复请求返回首次创建的同一订单。
+   * 写入 PostgreSQL;金额服务端计算,不信赖客户端。
    */
   create(dto: CreateOrderDto): Promise<Order> {
     if (!dto.idempotencyKey) {
-      const order = this.doCreate(dto);
-      void this.scheduleAutoCancel(order);
-      return Promise.resolve(order);
+      return this.doCreate(dto).then((o) => {
+        void this.scheduleAutoCancel(o);
+        return o;
+      });
     }
     return this.idempotency
       .execute(`order:create:${dto.idempotencyKey}`, 86400, async () => this.doCreate(dto))
@@ -51,61 +52,98 @@ export class OrdersService implements OnModuleInit {
       });
   }
 
-  /** 调度超时自动取消;调度失败不影响下单(仅告警) */
-  private scheduleAutoCancel(order: Order): void {
-    const delaySeconds = Number(process.env.ORDER_AUTO_CANCEL_SECONDS ?? 1800);
-    this.queueService
-      .scheduleOrderAutoCancel(order.id, delaySeconds * 1000)
-      .catch((err) =>
-        this.logger.warn(`调度订单超时任务失败: ${order.id} ${(err as Error).message}`),
-      );
-  }
-
-  /** 真正的下单逻辑(防篡改:金额一律服务端计算) */
-  private doCreate(dto: CreateOrderDto): Order {
+  private async doCreate(dto: CreateOrderDto): Promise<Order> {
     const totalAmount = dto.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-    const now = new Date().toISOString();
-
-    const order: Order = {
+    const entity = this.repo.create({
       id: randomUUID(),
       userId: dto.userId,
       items: dto.items,
       totalAmount,
       status: OrderStatus.PENDING,
-      remark: dto.remark,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    this.store.set(order.id, order);
-    return order;
+      remark: dto.remark ?? null,
+    });
+    const saved = await this.repo.save(entity);
+    return this.toOrder(saved);
   }
 
-  findById(id: string): Order | undefined {
-    return this.store.get(id);
+  async findById(id: string): Promise<Order | undefined> {
+    const entity = await this.repo.findOneBy({ id });
+    return entity ? this.toOrder(entity) : undefined;
   }
 
-  findAll(query: { page?: number; pageSize?: number }): PaginatedResult<Order> {
+  async findAll(query: { page?: number; pageSize?: number }): Promise<PaginatedResult<Order>> {
+    // QueryBuilder 演示(对标 MyBatis 动态 SQL):分页
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
-    const all = Array.from(this.store.values());
-    const start = (page - 1) * pageSize;
-    const items = all.slice(start, start + pageSize);
+    const [items, total] = await this.repo
+      .createQueryBuilder('o')
+      .orderBy('o.createdAt', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
 
     return {
-      items,
-      total: all.length,
+      items: items.map((e) => this.toOrder(e)),
+      total,
       page,
       pageSize,
-      totalPages: Math.ceil(all.length / pageSize),
+      totalPages: Math.ceil(total / pageSize),
     };
   }
 
-  updateStatus(id: string, status: OrderStatus): Order {
-    const order = this.store.get(id);
-    if (!order) throw new Error(`订单不存在: ${id}`);
-    order.status = status;
-    order.updatedAt = new Date().toISOString();
-    return order;
+  /**
+   * 更新订单状态 —— 乐观锁演示(对标 JPA @Version / MyBatis-Plus 乐观锁)。
+   * 原理:UPDATE 时显式携带期望版本号 `WHERE version = :expected`;
+   * 若期间版本已被其他事务 +1,affected = 0 => 抛乐观锁冲突错误。
+   *
+   * 注:TypeORM save() 不做自动版本检查,必须显式条件(官方 setLock('optimistic')
+   * 或本例的 where+affected 方案),否则会出现"后写覆盖前写"的丢失更新。
+   */
+  async updateStatus(id: string, status: OrderStatus): Promise<Order> {
+    const entity = await this.repo.findOneBy({ id });
+    if (!entity) throw new Error(`订单不存在: ${id}`);
+
+    const result = await this.repo
+      .createQueryBuilder()
+      .update(OrderEntity)
+      .set({ status })
+      .where('id = :id AND version = :expected', {
+        id,
+        expected: entity.version,
+      })
+      .execute();
+
+    if (result.affected === 0) {
+      // 版本不匹配:并发修改已发生,拒绝本次写入(防止丢失更新)
+      throw new OptimisticLockVersionMismatchError(
+        OrderEntity.name,
+        entity.version,
+        entity.version + 1,
+      );
+    }
+
+    const fresh = await this.repo.findOneBy({ id });
+    return this.toOrder(fresh!);
+  }
+
+  /** 调度超时自动取消;调度失败不影响下单(仅告警) */
+  private scheduleAutoCancel(order: Order): void {
+    const delaySeconds = Number(process.env.ORDER_AUTO_CANCEL_SECONDS ?? 1800);
+    this.queueService
+      .scheduleOrderAutoCancel(order.id, delaySeconds * 1000)
+      .catch((err) => this.logger.warn(`调度订单超时任务失败: ${order.id} ${(err as Error).message}`));
+  }
+
+  private toOrder(e: OrderEntity): Order {
+    return {
+      id: e.id,
+      userId: e.userId,
+      items: e.items,
+      totalAmount: e.totalAmount,
+      status: e.status,
+      remark: e.remark ?? undefined,
+      createdAt: e.createdAt.toISOString(),
+      updatedAt: e.updatedAt.toISOString(),
+    };
   }
 }

@@ -6,6 +6,7 @@ import {
   Payload,
   RpcException,
 } from '@nestjs/microservices';
+import { OptimisticLockVersionMismatchError } from 'typeorm';
 import { OrdersService } from './orders.service';
 import {
   CreateOrderDto,
@@ -42,24 +43,35 @@ export class OrdersController {
 
   /** 查询单个订单 */
   @MessagePattern(MESSAGE_PATTERNS.ORDER_GET)
-  get(@Payload() payload: { data: { id: string } }): Order {
-    const order = this.ordersService.findById(payload.data.id);
+  async get(@Payload() payload: { data: { id: string } }): Promise<Order> {
+    const order = await this.ordersService.findById(payload.data.id);
     if (!order) {
       throw new RpcException({ code: ErrorCode.ORDER_NOT_FOUND, message: '订单不存在' });
     }
     return order;
   }
 
-  /** 订单列表(分页) */
+  /** 订单列表(分页,QueryBuilder) */
   @MessagePattern(MESSAGE_PATTERNS.ORDER_LIST)
-  list(@Payload() payload: { data: { page?: number; pageSize?: number } }): PaginatedResult<Order> {
+  list(@Payload() payload: { data: { page?: number; pageSize?: number } }): Promise<PaginatedResult<Order>> {
     return this.ordersService.findAll(payload.data);
   }
 
-  /** 更新订单状态(内部调用) */
+  /** 更新订单状态(内部调用,乐观锁) */
   @MessagePattern(MESSAGE_PATTERNS.ORDER_CANCEL)
-  cancel(@Payload() payload: { data: UpdateOrderStatusDto }): Order {
-    return this.ordersService.updateStatus(payload.data.orderId, OrderStatus.CANCELLED);
+  async cancel(@Payload() payload: { data: UpdateOrderStatusDto }): Promise<Order> {
+    try {
+      return await this.ordersService.updateStatus(payload.data.orderId, OrderStatus.CANCELLED);
+    } catch (err) {
+      // 乐观锁冲突 => 409 冲突(演示错误码映射)
+      if (err instanceof OptimisticLockVersionMismatchError) {
+        throw new RpcException({
+          code: ErrorCode.CONFLICT,
+          message: '订单状态已被并发修改,请刷新后重试(乐观锁拦截)',
+        });
+      }
+      throw new RpcException({ code: ErrorCode.INTERNAL_ERROR, message: (err as Error).message });
+    }
   }
 
   /**

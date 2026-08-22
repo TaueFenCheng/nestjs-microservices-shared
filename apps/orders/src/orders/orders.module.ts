@@ -1,14 +1,17 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { OrderTimeoutProcessor } from './order-timeout.processor';
+import { OrderEntity } from '../entities/order.entity';
 
 /**
- * 订单业务模块 —— 只关心订单领域,不关心日志/鉴权/数据库怎么连。
- * 额外注册 BullMQ Worker(OrderTimeoutProcessor):消费超时自动取消任务。
+ * 订单业务模块 —— 注册实体仓储(TypeORM forFeature)。
+ * 额外注册 BullMQ Worker(OrderTimeoutProcessor)。
  */
 @Module({
   controllers: [OrdersController],
+  imports: [TypeOrmModule.forFeature([OrderEntity])],
   providers: [OrdersService, OrderTimeoutProcessor],
   exports: [OrdersService],
 })

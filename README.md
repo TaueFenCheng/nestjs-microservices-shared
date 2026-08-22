@@ -162,6 +162,10 @@ curl -X POST http://localhost:3000/orders \
 | 23 | 熔断器 `@CircuitBreaker`(Resilience4j 风格状态机 + fallback) | `circuit-breaker/` + `billing.confirmPayment` |
 | 24 | RabbitMQ 点对点队列(手动 ack / requeue,与 Redis 广播对比) | `Transport.RMQ` + `orders.main.ts`、RMQ 客户端 |
 | 25 | 混合应用生命周期修复 `await app.init()` | `apps/*/main.ts`(注释讲解坑) |
+| 26 | TypeORM + PostgreSQL 真实存储层 | `@nestjs/typeorm` + `OrderEntity` |
+| 27 | 乐观锁 `@VersionColumn` + 并发冲突拦截(409) | `orders.updateStatus`(WHERE version + affected 判定) |
+| 28 | 数据库迁移管理(migration:run/generate/revert) | `typeorm.config.ts` + `src/migrations/` |
+| 29 | QueryBuilder 动态条件查询(对标 MyBatis 动态 SQL) | `orders.findAll` 分页查询 |
 
 ---
 
