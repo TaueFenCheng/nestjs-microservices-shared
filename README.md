@@ -1,5 +1,24 @@
 # NestJS 微服务公共模块抽离实战仓库
 
+<p align="center">
+  <a href="https://github.com/TaueFenCheng/nestjs-microservices-shared/stargazers">
+    <img src="https://img.shields.io/github/stars/TaueFenCheng/nestjs-microservices-shared?style=flat-square&label=Stars" alt="GitHub stars">
+  </a>
+  <a href="https://github.com/TaueFenCheng/nestjs-microservices-shared/network">
+    <img src="https://img.shields.io/github/forks/TaueFenCheng/nestjs-microservices-shared?style=flat-square&label=Forks" alt="GitHub forks">
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/github/license/TaueFenCheng/nestjs-microservices-shared?style=flat-square" alt="License: MIT">
+  </a>
+  <img src="https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/NestJS-11%2B-e0234e?style=flat-square&logo=nestjs&logoColor=white" alt="NestJS">
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169e1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/Redis-7-dc382d?style=flat-square&logo=redis&logoColor=white" alt="Redis">
+  <img src="https://img.shields.io/badge/RabbitMQ-3-ff6600?style=flat-square&logo=rabbitmq&logoColor=white" alt="RabbitMQ">
+  <img src="https://img.shields.io/badge/BullMQ-5-f9d04e?style=flat-square" alt="BullMQ">
+  <img src="https://img.shields.io/badge/job-Java%20%E4%B8%96%E7%95%8C%20%E8%A1%8C%E7%94%9F%E6%95%99%E6%9D%90-FF6B00?style=flat-square" alt="Java 技术栈转 NestJS 教材">
+</p>
+
 > 一套可在多个 NestJS 微服务间共享的公共代码仓库(monorepo + shared library)。
 > 包含**完整可运行的示例**(网关 + 2 个微服务)与**详尽的设计文档**。
 
