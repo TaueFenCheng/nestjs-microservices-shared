@@ -1,0 +1,42 @@
+// Prisma Schema —— 对照演示(Prisma ORM 7,与 TypeORM 主线并存)
+// 说明:
+//  - v7 的 datasource 不再写 url,连接串统一放在 prisma.config.ts
+//  - generator 用新的 prisma-client(Rust-free),输出到项目 src 内
+//  - 表结构刻意与 OrderEntity 保持同构,便于对照 TypeORM / Prisma 写法差异
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  // NestJS 编译为 CommonJS,生成的 Client 也按 CJS 格式输出(官方教程同款)
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// 订单表(Prisma 版)—— 与 TypeORM 的 OrderEntity 对齐的字段
+model PrismaOrder {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.VarChar(64)
+  /// Json 字段:商品行快照(对照 TypeORM jsonb 列)
+  items       Json
+  totalAmount Decimal  @map("total_amount") @db.Decimal(12, 2)
+  status      String   @db.VarChar(20) // PENDING / PAID / CANCELLED
+  remark      String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("prisma_orders")
+}
+
+/// 审计日志表 —— 用于演示 $transaction 原子事务(业务写 + 审计写同时成功/失败)
+model PrismaAuditLog {
+  id        Int      @id @default(autoincrement())
+  action    String   @db.VarChar(64)
+  orderId   String?  @map("order_id") @db.Uuid
+  detail    String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("prisma_audit_log")
+}

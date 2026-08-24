@@ -42,3 +42,6 @@ lerna-debug.log*
 
 # Temp
 /tmp
+
+# Prisma generated client
+apps/orders/src/generated/

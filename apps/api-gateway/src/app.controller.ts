@@ -112,6 +112,52 @@ export class AppController {
     );
   }
 
+  // ---------- Prisma ORM 对照演示 ----------
+
+  /** Prisma 版创建订单($transaction 原子写订单+审计日志) */
+  @Post('prisma/orders')
+  async prismaCreateOrder(@Body() dto: CreateOrderDto): Promise<Order> {
+    return this.clientFactory.call(
+      this.ordersClient,
+      'prisma.order.create',
+      dto,
+      { requestId: 'gw-prisma-1' },
+    );
+  }
+
+  /** Prisma 版订单列表 */
+  @Get('prisma/orders')
+  async prismaListOrders(@Query() query: PaginationDto) {
+    return this.clientFactory.call(
+      this.ordersClient,
+      'prisma.order.list',
+      query,
+      { requestId: 'gw-prisma-2' },
+    );
+  }
+
+  /** Prisma 表统计(orders vs audit_log 计数,验证事务双写) */
+  @Get('prisma/orders/stats')
+  async prismaStats() {
+    return this.clientFactory.call(
+      this.ordersClient,
+      'prisma.order.stats',
+      {},
+      { requestId: 'gw-prisma-4' },
+    );
+  }
+
+  /** Prisma 版订单详情 */
+  @Get('prisma/orders/:id')
+  async prismaGetOrder(@Param('id') id: string): Promise<Order> {
+    return this.clientFactory.call(
+      this.ordersClient,
+      'prisma.order.get',
+      { id },
+      { requestId: 'gw-prisma-3' },
+    );
+  }
+
   // ---------- 支付编排 ----------
 
   /**

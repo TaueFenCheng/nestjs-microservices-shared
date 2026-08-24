@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SharedModule } from '@app/shared';
 import { OrdersModule } from './orders/orders.module';
+import { PrismaDemoModule } from './prisma-demo/prisma-demo.module';
 
 /**
  * orders 微服务根模块。
@@ -46,6 +47,8 @@ import { OrdersModule } from './orders/orders.module';
       },
     }),
     OrdersModule,
+    // Prisma ORM 对照演示(schema-first,与 TypeORM 主线并存)
+    PrismaDemoModule,
   ],
 })
 export class AppModule {}

@@ -5,7 +5,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build": "nest build -p tsconfig.build.json",
+    "build": "pnpm prisma:generate && nest build -p tsconfig.build.json",
     "start": "nest start",
     "start:gateway": "nest start api-gateway",
     "start:orders": "nest start orders",
@@ -19,6 +19,9 @@
     "prepare": "husky",
     "commit": "cz",
     "typeorm": "typeorm-ts-node-commonjs -d apps/orders/typeorm.config.ts",
+    "prisma:generate": "cd apps/orders && prisma generate",
+    "prisma:migrate": "cd apps/orders && prisma migrate dev",
+    "prisma:studio": "cd apps/orders && prisma studio",
     "migration:run": "npm run typeorm -- migration:run",
     "migration:generate": "npm run typeorm -- migration:generate apps/orders/src/migrations/NewMigration",
     "migration:revert": "npm run typeorm -- migration:revert"
@@ -40,6 +43,9 @@
     "@nestjs/terminus": "^11.0.0",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.3",
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "@prisma/client-runtime-utils": "^7.9.1",
     "amqp-connection-manager": "^5.0.0",
     "bullmq": "^6.2.0",
     "class-transformer": "^0.5.1",
@@ -62,6 +68,7 @@
     "cz-git": "^1.13.2",
     "husky": "^9.1.7",
     "prettier": "^3.4.0",
+    "prisma": "^7.9.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.0"

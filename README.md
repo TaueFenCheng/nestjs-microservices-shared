@@ -147,6 +147,7 @@ curl -X POST http://localhost:3000/orders \
 | [`docs/06-go-live-checklist.md`](docs/06-go-live-checklist.md) | 上线清单、迁移步骤、生产注意事项 |
 | [`docs/07-lifecycle-hooks.md`](docs/07-lifecycle-hooks.md) | 生命周期钩子总结(启动序/关闭序/践行示例) |
 | [`docs/08-commit-convention.md`](docs/08-commit-convention.md) | Git 提交规范(commitlint + husky + commitizen 配置说明) |
+| [`docs/09-typeorm-vs-prisma.md`](docs/09-typeorm-vs-prisma.md) | TypeORM 与 Prisma 双 ORM 对照:范式/选型/接入/坑(含 Prisma 7 迁移) |
 
 ---
 
@@ -190,6 +191,8 @@ curl -X POST http://localhost:3000/orders \
 | 32 | 注解族 `@Retryable`(指数退避)/ `@Cacheable` / `@Idempotent` | `decorators/` + orders/billing 挂载 |
 | 33 | 接口限流 `@nestjs/throttler` + `@Throttle`/`@SkipThrottle` | 网关全局 + pay 路由收紧(3/10s) |
 | 34 | 定时任务 `@nestjs/schedule` `@Cron`(对标 @Scheduled/Quartz) | `orders.reconciliationScan` |
+| 35 | Prisma 7(schema-first ORM)对照演示 + driver adapter | `apps/orders/src/prisma-demo/` + `prisma/schema.prisma` |
+| 36 | Prisma `$transaction` 数组式原子事务(双写成对) | `prismaDemoService.createOrder` + `prisma_audit_log` |
 
 ---
 
