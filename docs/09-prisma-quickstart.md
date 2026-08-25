@@ -40,6 +40,144 @@ delete / deleteMany / findUniqueOrThrow / findFirstOrThrow
 
 ---
 
+### 1.3 查询方法 —— 每个方法的可运行示例
+
+> 示例基于如下 schema(`model PrismaOrder` → delegate `client.prismaOrder`):
+> ```prisma
+> model PrismaOrder {
+>   id          String   @id @default(uuid())
+>   userId      String
+>   status      String   @default("PENDING")
+>   totalAmount Float
+>   remark      String?
+>   createdAt   DateTime @default(now())
+>   updatedAt   DateTime @updatedAt
+>   @@map("orders")
+> }
+> ```
+
+```ts
+// findUnique:按主键/@unique 取一条,查不到返回 null
+const order = await this.prisma.client.prismaOrder.findUnique({
+  where: { id: 'o-1' },
+});
+if (!order) throw new NotFoundException('订单不存在');
+
+// findUniqueOrThrow:查不到直接抛 PrismaClientKnownRequestError(P2025)
+const order = await this.prisma.client.prismaOrder.findUniqueOrThrow({
+  where: { id: 'o-1' },
+});
+
+// findFirst:取符合条件的第一条(可带排序,如"取最早一笔 PENDING")
+const oldestPending = await this.prisma.client.prismaOrder.findFirst({
+  where: { status: 'PENDING' },
+  orderBy: { createdAt: 'asc' },
+});
+
+// findFirstOrThrow:空则抛错
+const order = await this.prisma.client.prismaOrder.findFirstOrThrow({
+  where: { userId: 'u-1' },
+});
+
+// findMany:分页 + 排序 + 白名单字段 + 多条件筛选(典型列表页)
+const [items, total] = await this.prisma.client.$transaction([
+  this.prisma.client.prismaOrder.findMany({
+    where: { userId: 'u-1', status: { in: ['PENDING', 'PAID'] } },
+    select: { id: true, totalAmount: true, status: true }, // 只要 3 个字段
+    orderBy: { createdAt: 'desc' },
+    skip: (page - 1) * pageSize,
+    take: pageSize,
+  }),
+  this.prisma.client.prismaOrder.count({ where: { userId: 'u-1' } }),
+]);
+
+// 游标分页(cursor):替代 skip 深分页,大表推荐
+const nextPage = await this.prisma.client.prismaOrder.findMany({
+  take: 10, skip: 1, cursor: { id: lastSeenId }, orderBy: { id: 'asc' },
+});
+
+// count:直接计数
+const pendingCount = await this.prisma.client.prismaOrder.count({
+  where: { status: 'PENDING' },
+});
+
+// count + select:一次算多个口径
+const counts = await this.prisma.client.prismaOrder.count({
+  select: {
+    pending: { where: { status: 'PENDING' } },
+    paid:    { where: { status: 'PAID' } },
+    all:     true,
+  },
+}); // { pending: 3, paid: 10, all: 15 }
+
+// aggregate:数值聚合(总额/均值/最新时间)
+const agg = await this.prisma.client.prismaOrder.aggregate({
+  _sum: { totalAmount: true },
+  _avg: { totalAmount: true },
+  _max: { createdAt: true },
+  _count: true,
+});
+
+// groupBy:按状态分组 + having 过滤
+const byStatus = await this.prisma.client.prismaOrder.groupBy({
+  by: ['status'],
+  _count: { _all: true },
+  _sum:   { totalAmount: true },
+  having: { totalAmount: { _avg: { gte: 100 } } },
+});
+// [{ status: 'PAID', _count: { _all: 10 }, _sum: { totalAmount: 10000 } }, ...]
+```
+
+### 1.4 写方法 —— 每个方法的可运行示例
+
+```ts
+// create:插入一行,返回整行(含默认值字段)
+const order = await this.prisma.client.prismaOrder.create({
+  data: { id: randomUUID(), userId: 'u-1', totalAmount: 100, status: 'PENDING' },
+});
+
+// createMany:批量插入(不返回记录、不触发字段级钩子)注意 createMany 默认跳过 @updatedAt
+const { count } = await this.prisma.client.prismaOrder.createMany({
+  data: [{ userId: 'u-1', totalAmount: 10 }, { userId: 'u-2', totalAmount: 20 }],
+});
+
+// createManyAndReturn:批量插入并返回记录(5.x+)
+const orders = await this.prisma.client.prismaOrder.createManyAndReturn({
+  data: [{ userId: 'u-1', totalAmount: 10 }],
+});
+
+// update:更新一行(where 必须唯一条件)
+const order = await this.prisma.client.prismaOrder.update({
+  where: { id: 'o-1' },
+  data: { status: 'PAID' },
+});
+
+// updateMany:条件批量更新,返回 { count }
+const { count } = await this.prisma.client.prismaOrder.updateMany({
+  where: { userId: 'u-1', status: 'PENDING' },
+  data: { remark: '批量备注' },
+});
+
+// upsert:有则更新、无则插入(原子,防重复下单常用)
+const order = await this.prisma.client.prismaOrder.upsert({
+  where: { id: 'o-1' },
+  create: { id: 'o-1', userId: 'u-1', totalAmount: 100 },
+  update: { status: 'PAID' },
+});
+
+// delete:删一行(where 唯一条件),返回被删整行
+const deleted = await this.prisma.client.prismaOrder.delete({
+  where: { id: 'o-1' },
+});
+
+// deleteMany:批量删除
+const { count } = await this.prisma.client.prismaOrder.deleteMany({
+  where: { userId: 'u-1', status: 'CANCELLED' },
+});
+```
+
+---
+
 ## 2. `$transaction` 的两种形态(区分关键)
 
 ### 2.1 数组式(批量、并发、只读友好)
