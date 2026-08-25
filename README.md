@@ -148,6 +148,7 @@ curl -X POST http://localhost:3000/orders \
 | [`docs/07-lifecycle-hooks.md`](docs/07-lifecycle-hooks.md) | 生命周期钩子总结(启动序/关闭序/践行示例) |
 | [`docs/08-commit-convention.md`](docs/08-commit-convention.md) | Git 提交规范(commitlint + husky + commitizen 配置说明) |
 | [`docs/09-prisma-quickstart.md`](docs/09-prisma-quickstart.md) | PrismaClient 方法全览 + 事务两种形态 + 与仓库 TypeORM 对照 |
+| [`docs/10-prisma-relations-indexes.md`](docs/10-prisma-relations-indexes.md) | Prisma 关联查询(include/select/中间表/原生 JOIN)与索引优化(@@index/EXPLAIN) |
 | [`docs/09-typeorm-vs-prisma.md`](docs/09-typeorm-vs-prisma.md) | TypeORM 与 Prisma 双 ORM 对照:范式/选型/接入/坑(含 Prisma 7 迁移) |
 
 ---
