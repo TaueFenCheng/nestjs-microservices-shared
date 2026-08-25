@@ -147,6 +147,7 @@ curl -X POST http://localhost:3000/orders \
 | [`docs/06-go-live-checklist.md`](docs/06-go-live-checklist.md) | 上线清单、迁移步骤、生产注意事项 |
 | [`docs/07-lifecycle-hooks.md`](docs/07-lifecycle-hooks.md) | 生命周期钩子总结(启动序/关闭序/践行示例) |
 | [`docs/08-commit-convention.md`](docs/08-commit-convention.md) | Git 提交规范(commitlint + husky + commitizen 配置说明) |
+| [`docs/09-prisma-quickstart.md`](docs/09-prisma-quickstart.md) | PrismaClient 方法全览 + 事务两种形态 + 与仓库 TypeORM 对照 |
 | [`docs/09-typeorm-vs-prisma.md`](docs/09-typeorm-vs-prisma.md) | TypeORM 与 Prisma 双 ORM 对照:范式/选型/接入/坑(含 Prisma 7 迁移) |
 
 ---
